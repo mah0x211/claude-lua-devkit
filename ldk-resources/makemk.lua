@@ -31,7 +31,7 @@
 --   src/foo.c, src/foo_bar.c, src/foo_baz.c
 --   → Grouped into 'foo' module with all three files
 --
---   src/bar.c, src/baz.c  
+--   src/bar.c, src/baz.c
 --   → Separate modules: 'bar' and 'baz'
 --
 -- The script also handles both C and C++ files, ensuring that the correct
@@ -113,10 +113,10 @@ printf('Generating mk/modules.mk...')
 -- Create mk/ directory if it doesn't exist
 local function mkdir_p(path)
     local cmd = format('mkdir -p "%s"', path)
-    local exit_code = os.execute(cmd)
-    if exit_code ~= 0 then
-        error(format('Failed to create directory: %s (exit code: %d)', path,
-                     exit_code))
+    local res = os.execute(cmd)
+    -- Lua 5.1 returns 0 on success, Lua 5.2+ returns true
+    if res ~= true and res ~= 0 then
+        error(format('Failed to create directory: %s', path))
     end
 end
 
