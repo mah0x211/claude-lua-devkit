@@ -24,7 +24,7 @@ return {
     
     -- Modules to include in coverage (adjust paths to match your project)
     include = {
-        "^lib/",           -- Include all modules in lib/ directory
+        "^lua/",           -- Include all modules in lua/ directory
         "^src/",           -- Include modules in src/ directory  
         "mymodule",        -- Include specific module
     },
@@ -81,7 +81,7 @@ Lines marked with `*0` indicate uncovered code that needs testing.
 
 ### Simple Module Projects
 **Single module**: Include pattern `"^mymodule$"`, exclude test directories (`"test/"` and `"spec/"`)  
-**Library projects**: Include `"^lib/"`, exclude test directories and external dependencies  
+**Library projects**: Include `"^lua/"`, exclude test directories and external dependencies  
 **Mixed C/Lua**: Include Lua paths only, exclude C extensions (use separate C coverage)  
 **Framework choice**: Exclude `"test/"` for testcase or `"spec/"` for busted (or both for mixed projects)
 

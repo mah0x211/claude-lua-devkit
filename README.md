@@ -41,7 +41,7 @@ For advanced use cases or troubleshooting, see [INSTALL.md](INSTALL.md).
 - **`cross-platform-building.md`** - Cross-platform considerations: compiler detection, platform-specific flags
 
 ### Project Structure Memories
-- **`project-layout.md`** - Standard project structure: src/ for C code, lib/ for Lua modules, spec/ for tests
+- **`project-layout.md`** - Standard project structure: src/ for C code, lua/ for Lua modules, spec/ for tests
 - **`file-organization.md`** - File organization: naming conventions, directory hierarchies
 
 ### Testing and Quality

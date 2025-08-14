@@ -137,7 +137,7 @@ end
 ### Application Scope
 
 This convention applies to:
-- All Lua files under lib/
+- All Lua files under lua/
 - All C files under src/ (similar optimization with corresponding C functions)
 - Test files under test/
 

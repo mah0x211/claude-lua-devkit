@@ -75,7 +75,7 @@ echo "  ${PACKAGE_NAME_UPPER}_COVERAGE=1 luarocks make rockspecs/$PACKAGE_NAME-d
 ## What This Provides
 
 - **Complete Lua Package System** - Supports pure Lua modules, C/C++ extensions, and command scripts
-- **Automatic File Discovery** - Scans `lib/`, `src/`, and `bin/` directories automatically
+- **Automatic File Discovery** - Scans `lua/`, `src/`, and `bin/` directories automatically
 - **LuaRocks Integration** - Seamless integration with LuaRocks package management
 - **Mixed Language Support** - Automatic handling of C and C++ files in same project
 - **Coverage Support** - Build with gcov instrumentation for C/C++ code and luacov for Lua code
@@ -158,7 +158,7 @@ After setup, you can further customize:
 This build system works with the following structure:
 ```
 your-project/
-├── lib/                    # Lua modules (.lua files)
+├── lua/                    # Lua modules (.lua files)
 │   ├── mypackage.lua      # Main module (optional)
 │   └── mypackage/         # Sub-modules (optional)
 │       └── helper.lua
@@ -173,9 +173,9 @@ your-project/
 
 ### Module Types
 
-**Pure Lua Package**: Only `lib/` directory with `.lua` files
+**Pure Lua Package**: Only `lua/` directory with `.lua` files
 **C/C++ Extension Package**: Only `src/` directory with `.c/.cpp` files  
-**Mixed Package**: Both `lib/` and `src/` directories
+**Mixed Package**: Both `lua/` and `src/` directories
 **Command Package**: Includes `bin/` directory with executable scripts
 
 ### Source File Handling
