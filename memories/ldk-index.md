@@ -16,7 +16,7 @@ Central reference point for all LDK memory files.
 
 ## Project Structure Memories
 
-@.claude/memories/project-layout.md - Standard Lua project structure: src/ for C code, lib/ for Lua modules, spec/ for tests, and proper file organization
+@.claude/memories/project-layout.md - Standard Lua project structure: src/ for C code, lua/ for Lua modules, spec/ for tests, and proper file organization
 @.claude/memories/file-organization.md - File organization best practices: module naming conventions, directory hierarchies, and separation of concerns
 
 ## Testing and Quality

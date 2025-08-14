@@ -92,7 +92,7 @@ echo
 echo "Directory structure expected:"
 echo "  rockspecs/ - Rockspec files (created)"
 echo "  src/       - C/C++ source files (.c, .cpp)"
-echo "  lib/       - Lua library files (.lua)"
+echo "  lua/       - Lua library files (.lua)"
 echo "  bin/       - Command scripts (.lua, optional)"
 echo
 echo "Usage:"
@@ -100,7 +100,7 @@ echo "  luarocks make rockspecs/$PACKAGE_NAME-dev-1.rockspec    # Build and inst
 echo "  ${PACKAGE_NAME_UPPER}_COVERAGE=1 luarocks make rockspecs/$PACKAGE_NAME-dev-1.rockspec    # Build with coverage"
 echo
 echo "Supports:"
-echo "  - Pure Lua projects (lib/ only)"
+echo "  - Pure Lua projects (lua/ only)"
 echo "  - Pure C projects (.c files)"
 echo "  - Pure C++ projects (.cpp files)"
 echo "  - Mixed C/C++ projects"

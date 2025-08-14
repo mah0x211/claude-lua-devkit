@@ -7,7 +7,7 @@ For test code guidelines, see @.claude/memories/ldk-test-guidelines.md
 
 **Path Structure Principle**: All directories mirror the `require()` module path structure. For `require('foo.bar.baz')`, files are organized as `<directory>/foo/bar/baz.<extension>`.
 
-- **Lua modules**: `lib/**/*.lua`
+- **Lua modules**: `lua/**/*.lua`
 - **C extensions**: `src/**/*.c`
 - **Tests**: `test/**/*_test.lua` (testcase) OR `spec/**/*_spec.lua` (busted) (one-to-one correspondence with modules)
 - **Benchmarks**: `bench/**/*_bench.lua` or `test/bench/**/*_bench.lua` (one-to-one correspondence)

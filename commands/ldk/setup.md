@@ -46,4 +46,4 @@ After the script completes:
 ## Step 5: Final Instructions
 
 Tell the user:
-"Setup complete! Your build system supports Pure Lua projects, C/C++ extensions (.c/.cpp files), mixed projects, automatic compiler selection, and coverage instrumentation. Create src/, lib/, and bin/ directories as needed, then use 'luarocks make' to build."
+"Setup complete! Your build system supports Pure Lua projects, C/C++ extensions (.c/.cpp files), mixed projects, automatic compiler selection, and coverage instrumentation. Create src/, lua/, and bin/ directories as needed, then use 'luarocks make' to build."

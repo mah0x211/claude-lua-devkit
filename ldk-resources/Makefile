@@ -14,7 +14,7 @@
 # - Installation paths must be correct for luarocks package management
 #
 # KEY FEATURES:
-# 1. AUTOMATIC DISCOVERY: Scans src/, lib/, bin/ directories automatically
+# 1. AUTOMATIC DISCOVERY: Scans src/, lua/, bin/ directories automatically
 # 2. PREFIX GROUPING: Groups C files by prefix (foo.c + foo_bar.c → single module)
 # 3. NESTED MODULES: Supports directory hierarchy (src/util/parser.c → util.parser)
 # 4. MIXED LANGUAGES: Handles C, C++, and Lua files in same project
@@ -22,7 +22,7 @@
 # 6. COVERAGE SUPPORT: Built-in support for code coverage analysis
 #
 # BENEFITS:
-# - Zero configuration: Just add files to src/, lib/, bin/ and they're built
+# - Zero configuration: Just add files to src/, lua/, bin/ and they're built
 # - Maintainable: No need to update Makefile when adding/removing source files
 # - Consistent: Enforces proper Lua module naming and structure conventions
 # - Portable: Works across different platforms via luarocks
@@ -127,12 +127,12 @@ $(info Discovering command scripts in bin/ directory...)
 CMD_SOURCES = $(shell find bin -name '*.lua' 2>/dev/null || true)
 CMD_TARGETS = $(patsubst bin/%.lua, $(BINDIR)/%, $(CMD_SOURCES))
 
-# Discover Lua module files in lib/ directory
-$(info Discovering Lua modules in lib/ directory...)
-LUASRCS = $(shell find lib -name '*.lua' 2>/dev/null || true)
-LUALIBS = $(patsubst lib/%,$(LUALIBDIR)/%,$(filter-out lib/$(PACKAGE_NAME).lua,$(LUASRCS)))
+# Discover Lua module files in lua/ directory
+$(info Discovering Lua modules in lua/ directory...)
+LUASRCS = $(shell find lua -name '*.lua' 2>/dev/null || true)
+LUALIBS = $(patsubst lua/%,$(LUALIBDIR)/%,$(filter-out lua/$(PACKAGE_NAME).lua,$(LUASRCS)))
 # Set MAINLIB for either Lua or C main module (but not both)
-MAINLIB = $(if $(wildcard lib/$(PACKAGE_NAME).lua),$(LUADIR)/$(PACKAGE_NAME).lua,$(if $(filter $(PACKAGE_NAME),$(MODULE_NAMES)),$(LIBDIR)/$(PACKAGE_NAME).$(LIB_EXTENSION)))
+MAINLIB = $(if $(wildcard lua/$(PACKAGE_NAME).lua),$(LUADIR)/$(PACKAGE_NAME).lua,$(if $(filter $(PACKAGE_NAME),$(MODULE_NAMES)),$(LIBDIR)/$(PACKAGE_NAME).$(LIB_EXTENSION)))
 
 ###########################################################################
 # C module definition generation and processing
@@ -219,13 +219,13 @@ LUALIBDIR = $(LUADIR)/$(PACKAGE_NAME)
 CLIBDIR = $(LIBDIR)/$(PACKAGE_NAME)
 
 # Module validation
-# Check for main module conflicts - prevent having both lib/package.lua and src/package.c
-HAS_MAIN_LUA = $(wildcard lib/$(PACKAGE_NAME).lua)
+# Check for main module conflicts - prevent having both lua/package.lua and src/package.c
+HAS_MAIN_LUA = $(wildcard lua/$(PACKAGE_NAME).lua)
 HAS_MAIN_C = $(filter $(PACKAGE_NAME),$(MODULE_NAMES))
 
 ifneq ($(HAS_MAIN_LUA),)
 ifneq ($(HAS_MAIN_C),)
-$(error Error: Both Lua main module (lib/$(PACKAGE_NAME).lua) and C main module (src/$(PACKAGE_NAME).c) exist. Please use only one main module type.)
+$(error Error: Both Lua main module (lua/$(PACKAGE_NAME).lua) and C main module (src/$(PACKAGE_NAME).c) exist. Please use only one main module type.)
 endif
 endif
 
@@ -291,15 +291,15 @@ define CLEANUP_BUILD_FILES
 	find src -name "*.gcda" -delete 2>/dev/null || true
 endef
 
-# Lua library files installation (lib/*.lua -> $(LUALIBDIR)/*)
-$(LUALIBDIR)/%: lib/%
+# Lua library files installation (lua/*.lua -> $(LUALIBDIR)/*)
+$(LUALIBDIR)/%: lua/%
 	$(INSTALL_FILES)
 
 # Main module installation (either Lua or C)
 ifneq ($(MAINLIB),)
 # Install Lua main module if it exists
-ifneq ($(wildcard lib/$(PACKAGE_NAME).lua),)
-$(MAINLIB): lib/$(PACKAGE_NAME).lua
+ifneq ($(wildcard lua/$(PACKAGE_NAME).lua),)
+$(MAINLIB): lua/$(PACKAGE_NAME).lua
 	$(INSTALL_FILES)
 else
 # Install C main module if it exists
