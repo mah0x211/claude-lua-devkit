@@ -32,19 +32,6 @@
 # Direct 'make' execution is prevented to ensure proper variable setup.
 #
 
-##
-# C++ Compiler Configuration
-##
-# C++ compiler configuration
-# If CXX is not properly set, derive it from CC to inherit all SDK and platform settings
-# This ensures C++ compilation uses the same environment settings as C compilation
-ifndef CXX
-CXX = $(subst gcc,g++,$(subst clang,clang++,$(CC)))
-else ifeq ($(CXX),c++)
-# If CXX is just the basic 'c++', replace it with a derived version from CC
-CXX = $(subst gcc,g++,$(subst clang,clang++,$(CC)))
-endif
-
 # Build flags configuration
 # Coverage flags (enabled when {{PACKAGE_NAME_UPPER}}_COVERAGE is set)
 ifdef {{PACKAGE_NAME_UPPER}}_COVERAGE
@@ -259,33 +246,6 @@ endif
 
 # Default target - build all C modules
 all: $(MODULE_TARGETS)
-
-##
-# Compilation and linking rules
-##
-# Object file compilation rules
-%.o: %.c
-	$(CC) $(CFLAGS) $(WARNINGS) $(COVFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(WARNINGS) $(COVFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-# Module linking rules
-# Static pattern rule with SECONDEXPANSION
-# - Uses $* (stem) to convert target path to variable name: util/helper -> util_helper
-# - SECONDEXPANSION allows dynamic variable name construction in prerequisites
-.SECONDEXPANSION:
-$(MODULE_TARGETS): src/%.$(LIB_EXTENSION): $$($$(subst /,_,$$*)_OBJS)
-	# Call BUILD_MODULE macro with: linker command, library flags
-	$(call BUILD_MODULE,$($(subst /,_,$*)_LINK),$($(subst /,_,$*)_LIBS))
-
-# Common module build rule (compile + link)
-# Parameters: $(1)=linker command, $(2)=library flags
-# Uses: $@=target, $^=all prerequisites
-define BUILD_MODULE
-	@mkdir -p $(@D)
-	$(1) -o $@ $^ $(LDFLAGS) $(PLATFORM_LDFLAGS) $(COVFLAGS) $(2)
-endef
 
 ##
 # Installation rules and macros
