@@ -53,36 +53,148 @@ local function mkdir_p(path)
     end
 end
 
+--- merge two tables, avoiding duplicates
+--- @param src table the source table
+--- @param dest table? the destination table, if nil to create a new table
+--- @return table dest
+local function merge_tables(src, dest)
+    dest = dest or {}
+    for _, v in ipairs(src) do
+        if not dest[v] then
+            dest[v] = true
+            dest[#dest + 1] = v
+        end
+    end
+    return dest
+end
+
+--- merge flags from the source table into the destination table
+--- @param src table the source table
+--- @param dest table? the destination table, if nil to create a new table
+--- @param ... string the keys to merge from the source table
+--- @return table dest
+local function merge_flags(src, dest, ...)
+    dest = dest or {}
+    for _, k in ipairs({...}) do
+        dest[k] = merge_tables(src[k] or {}, dest[k])
+    end
+    return dest
+end
+
 --- add a file to a group based on its prefix
 --- @param group table the file group to add to
 --- @param src string the source path of the file to add
 --- @param name string the name of the file to add
 --- @param ext string the extension of the file to add
-local function group_by_prefix(group, src, name, ext)
+--- @param flags table flags directives for the file
+local function group_by_prefix(group, src, name, ext, flags)
     for gname, grp in pairs(group) do
         -- if the file prefix matches the group name
         if #gname < #name and name:sub(1, #gname) == gname then
             -- add the file to the group
             grp.srcs[#grp.srcs + 1] = src
+            -- merge compiler flags for the source file
+            grp.flags4src[src] = merge_flags(flags, grp.flags4src[src],
+                                             'cppflags', 'cflags', 'cxxflags')
+
+            -- Set linker and library flags for C++ files
             if ext == 'cpp' then
-                grp.linker = '$(CXX)'
-                if not grp.libs['-lstdc++'] then
-                    grp.libs['-lstdc++'] = true
-                    grp.libs[#grp.libs + 1] = '-lstdc++'
-                end
+                grp.linker = 'cxx'
+                merge_tables({'-lstdc++'}, grp.ldflags)
             end
+            -- merge linker and library flags
+            merge_flags(flags, grp, 'ldflags')
             return
         end
     end
 
     -- create a new group for the file
-    local grp = {srcs = {src}, linker = '$(CC)', libs = {}}
-    if ext == 'cpp' then
-        grp.linker = '$(CXX)'
-        grp.libs['-lstdc++'] = true
-        grp.libs[#grp.libs + 1] = '-lstdc++'
-    end
+    local grp = {
+        srcs = {src},
+        linker = ext == 'cpp' and 'cxx' or 'cc',
+        ldflags = ext == 'cpp' and {'-lstdc++'} or {},
+        flags4src = {[src] = {}}
+    }
+    -- Add compiler flags
+    merge_flags(flags, grp.flags4src[src], 'cppflags', 'cflags', 'cxxflags')
+    -- Add library flags
+    merge_flags(flags, grp, 'ldflags')
     group[name] = grp
+end
+
+--- parse source file directives like //@ldflags:, //@cflags:, //@cppflags:
+--- @param filepath string the path to the source file
+--- @return table directives parsed flags
+local function parse_directives(filepath)
+    local directives = {}
+    local file = io.open(filepath, "r")
+    if not file then return directives end
+
+    local in_multiline_comment = false
+    local lineno = 0
+    for line in file:lines() do
+        local is_comment = in_multiline_comment
+        lineno = lineno + 1
+
+        -- If we're in a multi-line comment
+        if in_multiline_comment then
+            -- Check for multi-line comment end */
+            if line:find('%*/') then
+                in_multiline_comment = false
+                -- remove ending marker
+                line = line:gsub('%*+/', '')
+            end
+        elseif line:find('^%s*/%*') then
+            -- multi-line comment start
+            in_multiline_comment = true
+        elseif line:find('^%s*//') then
+            -- single-line comment
+            is_comment = true
+        elseif line:find('^%s*[^#]') then
+            -- Stop at first non-comment, non-preprocessor line (actual code)
+            break
+        elseif line:find('^%s*#') and line:find('^%s*#include') then
+            -- Stop at #include
+            break
+        end
+
+        -- If this is a comment line, check for directives
+        if is_comment then
+            local lowerl = line:lower()
+            for _, fname in ipairs({
+                'cppflags', -- C/C++ preprocessor flags (i.e. -DDEBUG, -Iinclude)
+                'cflags', -- C compiler flags (i.e. -Wall, -Werror, -std=c11)
+                'cxxflags', -- C++ compiler flags (i.e. -std=c++20)
+                'ldflags' -- Linker flags (i.e. -L/lib -lm)
+            }) do
+                local match = lowerl:match('%s*[@]' .. fname .. ':%s*(.+)$')
+                if match then
+                    if directives[fname] then
+                        -- Duplicate directive found
+                        error(format(
+                                  'Duplicate directive %q found in file %s:%d',
+                                  line:match('@.*$'), filepath, lineno))
+                    end
+                    local value = line:match(':%s*(.+)$')
+                    if value then
+                        local flags = directives[fname] or {}
+                        directives[fname] = flags
+                        if fname == 'ldflags' then
+                            -- Split by whitespace and add to the list
+                            for v in value:gmatch('%S+') do
+                                flags[#flags + 1] = v
+                            end
+                        else
+                            flags[#flags + 1] = value
+                        end
+                    end
+                end
+            end
+        end
+    end
+    file:close()
+
+    return directives
 end
 
 --- get the directory information
@@ -101,6 +213,7 @@ local function get_dirinfo(dirs, pathname)
             names = {},
             ext4name = {},
             src4name = {},
+            flags4name = {},
             groups = {}
         }
         dirs[dirname] = dirinfo
@@ -113,10 +226,15 @@ local function get_dirinfo(dirs, pathname)
                   'Cannot have the same filename %s.(%s|%s) in the same directory %s',
                   name, ext, dirinfo.ext4name[name], dirname))
     end
+
+    -- Parse directives from source file
+    local directives = parse_directives(pathname)
+
     -- add the file to the directory info
     dirinfo.names[#dirinfo.names + 1] = name
     dirinfo.ext4name[name] = ext
     dirinfo.src4name[name] = pathname
+    dirinfo.flags4name[name] = directives
 end
 
 --- get the list of directories and files in src/
@@ -141,7 +259,7 @@ local function get_dirinfos(dirpath)
         sort(dirinfo.names)
         for _, name in ipairs(dirinfo.names) do
             group_by_prefix(dirinfo.groups, dirinfo.src4name[name], name,
-                            dirinfo.ext4name[name])
+                            dirinfo.ext4name[name], dirinfo.flags4name[name])
         end
     end
 
@@ -149,41 +267,91 @@ local function get_dirinfos(dirpath)
 end
 
 --- create a target for the module as the Makefile fragment.
---- e.g.
----   foo_SRCS = src/foo1.c src/foo2.cpp
----   foo_OBJS = $(foo_SRCS:.cpp=.o)
----   foo_OBJS := $(foo_OBJS:.c=.o)
----   foo_LINK = $(CXX)
----   foo_LIBS = -lstdc++
----
 --- @param dirname string the directory name
 --- @param gname string the group name
 --- @param group table the group information
+--- @param is_static boolean? whether the target is a static library
 --- @return table target the Makefile fragment for the module
-local function make_target(dirname, gname, group)
-    local module = dirname .. gname
-    -- Convert path to target name (src/foo/bar -> foo_bar)
-    local name = module:gsub('^src/', ''):gsub('/', '_')
-    local lines = ([[
-# target for @MODULE@
-@NAME@_SRC = @SRCS@
-@NAME@_OBJS = $(@NAME@_SRC:.c=.o)
-@NAME@_OBJS := $(@NAME@_OBJS:.cpp=.o)
-@NAME@_LINK = @LINKER@
-@NAME@_LIBS = @LIBS@]]):gsub('@([^@]+)@', {
-        MODULE = module,
+local function make_target(dirname, gname, group, is_static)
+    local target = {
+        module = dirname .. gname,
+        linker = group.linker,
+        ldflags = merge_tables(group.ldflags)
+    }
+    local name = target.module:gsub('^[^%w_]+', ''):gsub('/', '_')
+    -- common template for all targets
+    local template = [[
+# target for @@MODULE@@
+@@NAME@@_SRC := @@SRCS@@
+@@NAME@@_LINKER = $(@@LINKER@@)
+@@NAME@@_LDFLAGS = @@LDFLAGS@@
+@@NAME@@_OBJS := $(@@NAME@@_SRC:.c=.o)
+@@NAME@@_OBJS := $(@@NAME@@_OBJS:.cpp=.o)
+]]
+    -- Generate @@EACH_OBJFLAGS@@ line
+    local objflags = {}
+    for _, src in ipairs(group.srcs) do
+        local obj = src:gsub('%.c$', '.o'):gsub('%.cpp$', '.o')
+        for fname, flags in pairs(group.flags4src[src]) do
+            if #flags > 0 then
+                objflags[#objflags + 1] =
+                    format('%s_%s = %s', obj, fname:upper(), concat(flags, ' '))
+            end
+        end
+    end
+    if #objflags > 0 then
+        template = template .. [[
+# Set compiler flags for each object file
+@@EACH_OBJFLAGS@@
+]]
+    end
+
+    if is_static == true then
+        -- Static library build rules
+        template = template .. [[
+# Build rule for static @@MODULE@@
+@@NAME@@_AR = $(AR)
+@@NAME@@_ARFLAGS = rcs
+@@MODULE@@.a: $(@@NAME@@_OBJS)
+	@mkdir -p $(@D)
+	$(@@NAME@@_AR) $(@@NAME@@_ARFLAGS) $@ $^
+ ]]
+
+        target.lines = template:gsub('@@([^@]+)@@', {
+            MODULE = target.module,
+            NAME = name,
+            SRCS = concat(group.srcs, ' '),
+            LINKER = target.linker:upper(),
+            LDFLAGS = concat(target.ldflags, ' '),
+            EACH_OBJFLAGS = concat(objflags, '\n')
+        })
+        return target
+    end
+
+    -- Dynamic library build rules
+    template = template .. [[
+# Build rule for dynamic @@MODULE@@
+@@MODULE@@.$(LIB_EXTENSION): $(@@NAME@@_OBJS)
+	@mkdir -p $(@D)
+	$(@@NAME@@_LINKER) -o $@ $^ $(LDFLAGS) $(PLATFORM_LDFLAGS) $(@@NAME@@_LDFLAGS) $(COVFLAGS) $(SANITIZERFLAGS)
+]]
+
+    target.lines = template:gsub('@@([^@]+)@@', {
+        MODULE = target.module,
         NAME = name,
-        LINKER = group.linker,
-        LIBS = concat(group.libs, ' '),
-        SRCS = concat(group.srcs, ' ')
+        SRCS = concat(group.srcs, ' '),
+        LINKER = target.linker:upper(),
+        LDFLAGS = concat(target.ldflags, ' '),
+        EACH_OBJFLAGS = concat(objflags, '\n')
     })
-    return {module = module, lines = lines}
+    return target
 end
 
 --- create targets for each module in a specific directory
 --- @param dirpath string the path to the directory
---- @return table a list of targets for the modules in the directory
-local function make_targets(dirpath)
+--- @param is_static boolean? whether the target is a static library
+--- @return table targets a list of target for the modules in the directory
+local function make_targets(dirpath, is_static)
     if dirpath:find('^[^%w_]') then
         error(format('Target directory location %q must not start with ' ..
                          'a non-alphanumeric and non-underscore character',
@@ -194,10 +362,12 @@ local function make_targets(dirpath)
     for _, dirinfo in ipairs(dirinfos) do
         -- create a target for each group
         for gname, group in pairs(dirinfo.groups) do
-            local target = make_target(dirinfo.dirname, gname, group)
+            local target = make_target(dirinfo.dirname, gname, group, is_static)
             targets[#targets + 1] = target
+            targets[target.module] = target
         end
     end
+
     return targets
 end
 
@@ -223,17 +393,51 @@ file:write([[
 # To regenerate this file, run `lua makemk.lua` from the project root.
 # Generated on: ]] .. os.date('%Y-%m-%d %H:%M:%S'), '\n\n')
 
+-- Write default variable definitions
+file:write([[
+#
+# Default variable definitions
+#
+AR ?= ar
+
+# C++ compiler configuration
+# If CXX is not properly set, derive it from CC to inherit all SDK and platform
+# settings. This ensures C++ compilation uses the same environment settings as
+# C compilation.
+ifndef CXX
+CXX = $(subst gcc,g++,$(subst clang,clang++,$(CC)))
+else ifeq ($(CXX),c++)
+# If CXX is just the basic 'c++', replace it with a derived version from CC
+CXX = $(subst gcc,g++,$(subst clang,clang++,$(CC)))
+endif
+]])
+
 -- Write module definitions and build rules
 file:write([[
+#
+# Generic compilation rules
+#
+%.o: %.c
+	$(CC) $(CPPFLAGS) $($@_CPPFLAGS) $(CFLAGS) $($@_CFLAGS) $(PLATFORM_CFLAGS) $(WARNINGS) $(COVFLAGS) $(SANITIZERFLAGS) -o $@ -c $<
+
+%.o: %.cpp
+	$(CXX) $(CPPFLAGS) $($@_CPPFLAGS) $(CXXFLAGS) $($@_CXXFLAGS) $(PLATFORM_CXXFLAGS) $(WARNINGS) $(COVFLAGS) $(SANITIZERFLAGS) -o $@ -c $<
+
 #
 # Module definitions and build rules
 #
 ]])
 
+-- Process lib/ directory for static library modules
+for _, target in ipairs(make_targets('lib/', true)) do
+    printf('static library %q target to be generated: %s_*', target.module,
+           target.module)
+    file:write(target.lines, '\n\n')
+end
+
 -- Process src/ directory for shared library modules
 local modules = {}
-local src_targets = make_targets('src/')
-for _, target in ipairs(src_targets) do
+for _, target in ipairs(make_targets('src/', false)) do
     modules[#modules + 1] = target.module
     printf('module %q target to be generated: %s_*', target.module,
            target.module)
