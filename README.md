@@ -6,7 +6,7 @@ A comprehensive Lua development toolkit for Claude Code, including memory files,
 
 - **Memory Files** (`memories/`) - Development guidelines and best practices for Claude Code
 - **Setup Commands** (`commands/ldk/`) - Claude prompt templates for tool integration  
-- **Build Templates** (`ldk-resources/`) - Complete Lua package build system supporting pure Lua, C/C++ extensions, and mixed projects
+- **Build Templates** (`ldk-resources/`) - Complete Lua package build system supporting pure Lua, C/C++ extensions, git submodules, and mixed projects
 
 ## Installation
 
@@ -58,7 +58,8 @@ For advanced use cases or troubleshooting, see [INSTALL.md](INSTALL.md).
 ### Lua Package Build System
 - **Setup Command**: `/commands/ldk/setup [package-name]`
 - **Templates**: `ldk-resources/Makefile`, `ldk-resources/makemk.lua`, `ldk-resources/template.rockspec`
-- **Purpose**: Complete Lua package build system with LuaRocks integration and coverage support
+- **Purpose**: Complete Lua package build system with LuaRocks integration, git submodule support, and coverage support
+- **Features**: Automatic file discovery, submodule initialization, environment isolation, mixed language support
 - **Documentation**: `ldk-resources/BUILD_SYSTEM_GUIDE.md`
 
 ### Version Management
