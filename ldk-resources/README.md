@@ -10,7 +10,8 @@ The `ldk-resources/` directory contains Lua-specific template files, configurati
 
 ### Lua Package Build System
 - **Files**: `Makefile`, `makemk.lua`, `template.rockspec`, `setup-makefile.sh`
-- **Purpose**: Complete Lua package build system supporting pure Lua modules, C/C++ extensions, and mixed projects
+- **Purpose**: Complete Lua package build system supporting pure Lua modules, C/C++ extensions, git submodules, and mixed projects
+- **Features**: Automatic file discovery, LuaRocks integration, submodule support, environment isolation
 - **Setup**: Use Claude command `/commands/ldk/setup [package] [user]` for setup
 - **Documentation**: See `BUILD_SYSTEM_GUIDE.md` for detailed information
 

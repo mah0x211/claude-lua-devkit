@@ -230,18 +230,65 @@ define INSTALL_FILES
 	@install "$<" "$@"
 endef
 
+
 ##
 # Build targets
 ##
-.PHONY: all install install-commands install-lualibs clean show-vars
+.PHONY: all submodule-init submodule-deps install install-commands install-lualibs clean show-vars
 
 # Default target - build all C modules
-all: $(MODULE_TARGETS)
+all: submodule-deps $(MODULE_TARGETS)
+
+
+##
+# Git submodule auto-initialization target
+##
+submodule-init:
+	@# Check if we're in a git repository root
+	@if [ "$$(git rev-parse --show-toplevel 2>/dev/null)" != "$$(pwd)" ]; then \
+		echo "ERROR: Not in git repository root"; \
+		exit 1; \
+	fi
+	@# Check if .gitmodules exists
+	@if [ ! -f .gitmodules ]; then \
+		echo "ERROR: No .gitmodules file found. Add submodules first with 'git submodule add'"; \
+		exit 1; \
+	fi
+	@# Check if there are uninitialized submodules
+	@if [ -z "$$(git submodule status 2>/dev/null | grep '^-' | head -1)" ]; then \
+		echo "All submodules already initialized"; \
+		exit 0; \
+	fi
+	@echo "========================================================================"
+	@echo "Git submodules detected but not initialized. Initializing now..."
+	@echo "========================================================================"
+	@git submodule update --init --recursive
+
+
+##
+# Submodule dependency target
+##
+submodule-deps:
+	#
+	# If using git submodules, uncomment the following line to auto-initialize:
+	#
+	# $(MAKE) submodule-init
+	#
+	# Build submodule dependencies (User-defined)
+	# Use env -i to clear environment and only inherit the following variables:
+	#
+	# env -i \
+	#	PATH="$$PATH" \
+	#	HOME="$$HOME" \
+	#	SHELL="$$SHELL" \
+	#	USER="$$USER" \
+	#	LANG="$$LANG" \
+	#	LC_ALL="$$LC_ALL" \
+	#	$(MAKE) -C <path/to/submodule with any additional arguments>
 
 ##
 # Installation rules
 ##
-
 # Main module installation (either Lua or C)
 ifneq ($(MAINLIB),)
 # Install Lua main module if it exists
@@ -276,7 +323,7 @@ $(LUALIBDIR)/%: lua/%
 install-lualibs: $(LUALIBS)
 
 # Main installation target - installs all discovered files
-install: install-commands install-lualibs $(MAINLIB) $(MODULE_LIBS)
+install: submodule-deps install-commands install-lualibs $(MAINLIB) $(MODULE_LIBS)
 	@echo ""
 	@echo "DEBUG: Install phase environment variables:"
 	@echo "LUADIR: $(LUADIR)"

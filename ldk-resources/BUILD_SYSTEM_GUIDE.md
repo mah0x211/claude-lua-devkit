@@ -19,6 +19,7 @@ This command will:
 
 ### Core Features
 - **Complete Lua Package System** - Supports pure Lua modules, C/C++ extensions, static libraries, and command scripts
+- **Git Submodule Support** - Automatic initialization and building of git submodules
 - **Automatic File Discovery** - Scans `lua/`, `src/`, `lib/`, and `bin/` directories automatically
 - **LuaRocks Integration** - Seamless integration with LuaRocks package management
 - **Mixed Language Support** - Automatic handling of C and C++ files in same project
@@ -76,6 +77,76 @@ The build system supports in-file configuration through comment directives:
 - **@cppflags:** - Preprocessor flags (both C and C++)
 - **@ldflags:** - Linker flags and external libraries
 - **@reflibs:** - Reference internal static libraries from lib/
+
+## Git Submodule Support
+
+The build system provides automatic initialization and building of git submodules for projects that depend on external C/C++ libraries.
+
+### Submodule Auto-Initialization
+
+When using git submodules, the build system can automatically initialize them before building your project:
+
+```bash
+# The build system checks for:
+# 1. Current directory is git repository root
+# 2. .gitmodules file exists
+# 3. Uninitialized submodules are present
+# Then automatically runs: git submodule update --init --recursive
+```
+
+### Submodule Building
+
+To build submodule dependencies, uncomment and customize the relevant lines in your Makefile:
+
+```makefile
+submodule-deps:
+	# If using git submodules, uncomment the following line to auto-initialize:
+	$(MAKE) submodule-init
+	
+	# Build submodule dependencies with isolated environment:
+	env -i \
+		PATH="$$PATH" \
+		HOME="$$HOME" \
+		SHELL="$$SHELL" \
+		USER="$$USER" \
+		LANG="$$LANG" \
+		LC_ALL="$$LC_ALL" \
+		$(MAKE) -C deps/somelib OPTION=value target.a
+```
+
+### Environment Isolation
+
+Submodule builds use environment isolation to prevent interference from parent project variables:
+
+- **Cleared Variables**: All environment variables are cleared with `env -i`
+- **Preserved Variables**: Only essential variables are inherited:
+  - `PATH` - For finding tools and compilers
+  - `HOME` - For user configuration
+  - `SHELL` - For proper shell execution
+  - `USER` - For user identification
+  - `LANG`, `LC_ALL` - For proper message localization
+
+### Example Workflow
+
+1. **Add Submodule**:
+   ```bash
+   git submodule add https://github.com/example/somelib.git deps/somelib
+   ```
+
+2. **Configure Build**: Uncomment and customize the build commands in `submodule-deps` target
+
+3. **Build Project**: The build system will automatically:
+   - Initialize submodules if needed
+   - Build submodule dependencies with isolated environment
+   - Build main project modules
+
+### Error Handling
+
+The build system provides clear error messages for common issues:
+
+- **Not in git root**: `ERROR: Not in git repository root`
+- **Missing .gitmodules**: `ERROR: No .gitmodules file found. Add submodules first with 'git submodule add'`
+- **Build failures**: Submodule build errors automatically stop the main build
 
 ## Module Types and Compilation
 
@@ -147,6 +218,12 @@ make clean
 
 # Show build configuration
 make show-config
+
+# Initialize git submodules only
+make submodule-init
+
+# Build submodule dependencies only
+make submodule-deps
 ```
 
 ### Development Workflow
@@ -154,8 +231,13 @@ make show-config
 # Initial setup
 /commands/ldk/setup mypackage
 
+# Add git submodules (if needed)
+git submodule add https://github.com/example/library.git deps/library
+
+# Configure submodule builds in Makefile's submodule-deps target
+
 # Development cycle
-luarocks make          # Build and install package
+luarocks make          # Build and install package (includes submodules)
 make clean             # Clean artifacts (optional)
 ```
 
@@ -262,6 +344,17 @@ If you need to set up files manually (not recommended), here's the basic process
 - Confirm gcov is installed
 - Check that package name environment variable is uppercase
 - Verify compiler supports coverage flags
+
+**Git submodule issues**
+- Ensure you're in the git repository root directory
+- Verify .gitmodules file exists and is properly configured
+- Check that submodules are accessible and can be cloned
+- Confirm submodule build commands are properly uncommented in Makefile
+
+**Submodule build fails**
+- Check that the submodule's build system works independently
+- Verify environment isolation isn't preventing required tools access
+- Review submodule documentation for specific build requirements
 
 ### Getting Help
 
