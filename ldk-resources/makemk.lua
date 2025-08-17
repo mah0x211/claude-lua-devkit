@@ -103,7 +103,7 @@ local function group_by_prefix(group, src, name, ext, flags)
                 merge_tables({'-lstdc++'}, grp.ldflags)
             end
             -- merge linker and library flags
-            merge_flags(flags, grp, 'ldflags')
+            merge_flags(flags, grp, 'ldflags', 'reflibs')
             return
         end
     end
@@ -113,12 +113,13 @@ local function group_by_prefix(group, src, name, ext, flags)
         srcs = {src},
         linker = ext == 'cpp' and 'cxx' or 'cc',
         ldflags = ext == 'cpp' and {'-lstdc++'} or {},
+        reflibs = {},
         flags4src = {[src] = {}}
     }
     -- Add compiler flags
     merge_flags(flags, grp.flags4src[src], 'cppflags', 'cflags', 'cxxflags')
     -- Add library flags
-    merge_flags(flags, grp, 'ldflags')
+    merge_flags(flags, grp, 'ldflags', 'reflibs')
     group[name] = grp
 end
 
@@ -165,7 +166,8 @@ local function parse_directives(filepath)
                 'cppflags', -- C/C++ preprocessor flags (i.e. -DDEBUG, -Iinclude)
                 'cflags', -- C compiler flags (i.e. -Wall, -Werror, -std=c11)
                 'cxxflags', -- C++ compiler flags (i.e. -std=c++20)
-                'ldflags' -- Linker flags (i.e. -L/lib -lm)
+                'ldflags', -- Linker flags (i.e. -L/lib -lm)
+                'reflibs' -- Linker flags for linking with static libraries in lib/ directory
             }) do
                 local match = lowerl:match('%s*[@]' .. fname .. ':%s*(.+)$')
                 if match then
@@ -179,7 +181,7 @@ local function parse_directives(filepath)
                     if value then
                         local flags = directives[fname] or {}
                         directives[fname] = flags
-                        if fname == 'ldflags' then
+                        if fname == 'reflibs' or fname == 'ldflags' then
                             -- Split by whitespace and add to the list
                             for v in value:gmatch('%S+') do
                                 flags[#flags + 1] = v
@@ -271,8 +273,9 @@ end
 --- @param gname string the group name
 --- @param group table the group information
 --- @param is_static boolean? whether the target is a static library
+--- @param reflibs table? a list of static library targets to link against
 --- @return table target the Makefile fragment for the module
-local function make_target(dirname, gname, group, is_static)
+local function make_target(dirname, gname, group, is_static, reflibs)
     local target = {
         module = dirname .. gname,
         linker = group.linker,
@@ -331,10 +334,27 @@ local function make_target(dirname, gname, group, is_static)
     -- Dynamic library build rules
     template = template .. [[
 # Build rule for dynamic @@MODULE@@
-@@MODULE@@.$(LIB_EXTENSION): $(@@NAME@@_OBJS)
+@@MODULE@@.$(LIB_EXTENSION): $(@@NAME@@_OBJS) @@BUILD_REFLIBS@@
 	@mkdir -p $(@D)
 	$(@@NAME@@_LINKER) -o $@ $^ $(LDFLAGS) $(PLATFORM_LDFLAGS) $(@@NAME@@_LDFLAGS) $(COVFLAGS) $(SANITIZERFLAGS)
 ]]
+
+    -- Link to static libraries in lib/ directory
+    local build_reflibs = {}
+    for _, libname in ipairs(group.reflibs) do
+        libname = 'lib/' .. libname
+        local reflib = reflibs[libname]
+        if reflib then
+            if reflib.linker == 'cxx' then
+                -- if library against C++ code, use C++ linker
+                target.linker = reflib.linker
+            end
+            -- merge ldflags
+            target.ldflags = merge_tables(reflib.ldflags, target.ldflags)
+        end
+        target.ldflags[#target.ldflags + 1] = libname .. '.a'
+        build_reflibs[#build_reflibs + 1] = libname .. '.a'
+    end
 
     target.lines = template:gsub('@@([^@]+)@@', {
         MODULE = target.module,
@@ -342,7 +362,8 @@ local function make_target(dirname, gname, group, is_static)
         SRCS = concat(group.srcs, ' '),
         LINKER = target.linker:upper(),
         LDFLAGS = concat(target.ldflags, ' '),
-        EACH_OBJFLAGS = concat(objflags, '\n')
+        EACH_OBJFLAGS = concat(objflags, '\n'),
+        BUILD_REFLIBS = concat(build_reflibs, ' ')
     })
     return target
 end
@@ -350,8 +371,9 @@ end
 --- create targets for each module in a specific directory
 --- @param dirpath string the path to the directory
 --- @param is_static boolean? whether the target is a static library
+--- @param reflibs table? a list of static library targets to link against
 --- @return table targets a list of target for the modules in the directory
-local function make_targets(dirpath, is_static)
+local function make_targets(dirpath, is_static, reflibs)
     if dirpath:find('^[^%w_]') then
         error(format('Target directory location %q must not start with ' ..
                          'a non-alphanumeric and non-underscore character',
@@ -362,7 +384,8 @@ local function make_targets(dirpath, is_static)
     for _, dirinfo in ipairs(dirinfos) do
         -- create a target for each group
         for gname, group in pairs(dirinfo.groups) do
-            local target = make_target(dirinfo.dirname, gname, group, is_static)
+            local target = make_target(dirinfo.dirname, gname, group, is_static,
+                                       reflibs)
             targets[#targets + 1] = target
             targets[target.module] = target
         end
@@ -429,15 +452,17 @@ file:write([[
 ]])
 
 -- Process lib/ directory for static library modules
-for _, target in ipairs(make_targets('lib/', true)) do
+local reflibs = make_targets('lib/', true)
+for _, target in ipairs(reflibs) do
     printf('static library %q target to be generated: %s_*', target.module,
            target.module)
     file:write(target.lines, '\n\n')
+    target.lines = nil
 end
 
 -- Process src/ directory for shared library modules
 local modules = {}
-for _, target in ipairs(make_targets('src/', false)) do
+for _, target in ipairs(make_targets('src/', false, reflibs)) do
     modules[#modules + 1] = target.module
     printf('module %q target to be generated: %s_*', target.module,
            target.module)
