@@ -123,7 +123,7 @@ local function group_by_prefix(group, src, name, ext, flags)
     group[name] = grp
 end
 
---- parse source file directives like //@ldflags:, //@cflags:, //@cppflags:
+--- parse source file directives like //@ldflags:, //@cflags:, //@cppflags:, //@cxxflags:, //@reflibs:
 --- @param filepath string the path to the source file
 --- @return table directives parsed flags
 local function parse_directives(filepath)
@@ -163,11 +163,11 @@ local function parse_directives(filepath)
         if is_comment then
             local lowerl = line:lower()
             for _, fname in ipairs({
-                'cppflags', -- C/C++ preprocessor flags (i.e. -DDEBUG, -Iinclude)
-                'cflags', -- C compiler flags (i.e. -Wall, -Werror, -std=c11)
-                'cxxflags', -- C++ compiler flags (i.e. -std=c++20)
-                'ldflags', -- Linker flags (i.e. -L/lib -lm)
-                'reflibs' -- Linker flags for linking with static libraries in lib/ directory
+                'cppflags', -- C/C++ preprocessor flags (e.g., -DDEBUG, -Iinclude)
+                'cflags', -- C compiler flags (e.g., -Wall, -Werror, -std=c11)
+                'cxxflags', -- C++ compiler flags (e.g., -std=c++20)
+                'ldflags', -- Linker flags (e.g., -L/lib -lm)
+                'reflibs' -- References to static libraries in lib/ directory (e.g., string util/memory)
             }) do
                 local match = lowerl:match('%s*[@]' .. fname .. ':%s*(.+)$')
                 if match then
@@ -346,7 +346,7 @@ local function make_target(dirname, gname, group, is_static, reflibs)
         local reflib = reflibs[libname]
         if reflib then
             if reflib.linker == 'cxx' then
-                -- if library against C++ code, use C++ linker
+                -- if library contains C++ code, use C++ linker
                 target.linker = reflib.linker
             end
             -- merge ldflags

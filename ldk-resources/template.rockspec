@@ -1,11 +1,11 @@
 package = "{{PACKAGE_NAME}}"
 version = "dev-1"
-source = {url = "git+https://github.com/{{GITHUB_USER}}/lua-{{PACKAGE_NAME}}.git"}
+source = {url = "git+{{REPO_URL}}.git"}
 description = {
-    summary = "{{PACKAGE_NAME}} is a Lua library for demonstration purposes.",
-    homepage = "https://github.com/{{GITHUB_USER}}/lua-{{PACKAGE_NAME}}",
+    summary = "A Lua package built with claude-lua-devkit",
+    homepage = "{{HOMEPAGE_URL}}",
     license = "MIT/X11",
-    maintainer = "<Your Name>"
+    maintainer = "{{MAINTAINER}}"
 }
 dependencies = {"lua >= 5.1"}
 build = {

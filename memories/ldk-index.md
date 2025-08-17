@@ -11,8 +11,10 @@ Central reference point for all LDK memory files.
 
 ## Build System Memories
 
-@.claude/memories/build-system-design.md - Advanced build system architecture: mixed Lua/C/C++ projects, module grouping, SECONDEXPANSION patterns, and dynamic target generation
+@.claude/memories/build-system-design.md - Advanced build system architecture: mixed Lua/C/C++ projects, module grouping, and dynamic target generation
 @.claude/memories/cross-platform-building.md - Cross-platform build considerations: compiler detection, platform-specific flags, library extensions (.so/.dll), and installation paths
+@.claude/memories/ldk-source-directives.md - Source file directive system: @cflags:, @ldflags:, @reflibs:, @cppflags:, @cxxflags: for automatic build configuration in C/C++ source files
+@.claude/memories/ldk-static-libraries.md - Static library build system: lib/ directory structure, .a file generation, prefix grouping, mixed C/C++ libraries, and @reflibs: linking
 
 ## Project Structure Memories
 

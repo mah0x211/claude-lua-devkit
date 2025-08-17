@@ -56,7 +56,7 @@ For advanced use cases or troubleshooting, see [INSTALL.md](INSTALL.md).
 ## Available Development Tools
 
 ### Lua Package Build System
-- **Setup Command**: `/commands/ldk/setup [package] [user]`
+- **Setup Command**: `/commands/ldk/setup [package-name]`
 - **Templates**: `ldk-resources/Makefile`, `ldk-resources/makemk.lua`, `ldk-resources/template.rockspec`
 - **Purpose**: Complete Lua package build system with LuaRocks integration and coverage support
 - **Documentation**: `ldk-resources/BUILD_SYSTEM_GUIDE.md`
@@ -102,9 +102,9 @@ After installation, you can use these Claude commands:
 
 **Build System Setup:**
 ```
-/commands/ldk/setup [package-name] [github-username]
+/commands/ldk/setup [package-name]
 ```
-Example: `/commands/ldk/setup mylib johndoe`
+Example: `/commands/ldk/setup mylib`
 
 **Version Management:**
 ```
